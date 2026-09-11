@@ -21,6 +21,10 @@ C:\Windows\SoftwareDistribution
 # restic's own cache (never needs to be backed up)
 *\AppData\Local\restic
 
+# Windows App Execution Alias stubs (reparse points restic reports as
+# "unsupported file type irregular" - not real files, safe to skip)
+*\AppData\Local\Microsoft\WindowsApps
+
 # Generic temp/junk file patterns
 *.tmp
 *.temp
