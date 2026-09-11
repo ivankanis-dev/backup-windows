@@ -1,0 +1,28 @@
+# Default excludes for the daily C:\ / D:\ restic backup.
+# One pattern per line. See: https://restic.readthedocs.io/en/stable/040_backup.html#excluding-files
+
+# Windows system/paging files (in-use, not needed, huge)
+C:\pagefile.sys
+C:\hiberfil.sys
+C:\swapfile.sys
+C:\DumpStack.log.tmp
+C:\DumpStack.log
+
+# Recycle bin / system volume metadata on every drive
+$Recycle.Bin
+System Volume Information
+
+# Windows/temp junk
+C:\Windows\Temp
+C:\Windows\SoftwareDistribution
+*\AppData\Local\Temp
+*\AppData\Local\CrashDumps
+
+# restic's own cache (never needs to be backed up)
+*\AppData\Local\restic
+
+# Generic temp/junk file patterns
+*.tmp
+*.temp
+Thumbs.db
+desktop.ini

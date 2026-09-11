@@ -1,0 +1,12 @@
+# Secrets - never commit
+restic-password.txt
+
+# Generated/runtime state
+restic-cache/
+logs/
+last-backup.txt
+last-prune.txt
+backup.lock
+
+# Editor swap files
+*.swp
