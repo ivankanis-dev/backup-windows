@@ -99,6 +99,14 @@ restic restore latest --target C:\restore-test
 restic restore <snapshot-id> --target C:\restore-test --include "C:\Users\ikanis\Documents"
 ```
 
+### GUI restore (optional)
+
+For browsing snapshots and restoring individual files/folders without the
+CLI, use [restic-browser](https://github.com/emuell/restic-browser) — a free,
+cross-platform desktop GUI for restic. Point it at the repository path
+(`I:\restic-backup\<hostname>`) and `restic-password.txt` to browse and
+restore.
+
 ## Retention
 
 After each successful backup (throttled to at most once every 7 days), the
