@@ -7,8 +7,8 @@
 
     Run this ONCE, from an elevated PowerShell prompt, as the user account
     that will run backups. It will:
-      1. Generate restic-password.txt (random passphrase) with a locked-down
-         NTFS ACL (only the current user can read it).
+      1. Generate restic-password.txt (random passphrase). The drive is
+         BitLocker-encrypted, so no additional NTFS ACL lockdown is applied.
       2. Register a Scheduled Task that starts Watch-DriveConnect.ps1 at
          logon; it runs hidden in the background and triggers backup.ps1
          automatically whenever drive I: is connected.
@@ -36,7 +36,7 @@ if (-not (Get-Command restic -ErrorAction SilentlyContinue)) {
 }
 
 # ---------------------------------------------------------------------------
-# 1. Generate the restic repository password file, locked down with ACLs
+# 1. Generate the restic repository password file
 # ---------------------------------------------------------------------------
 if (Test-Path $PasswordFile) {
     Write-Host "Password file already exists at $PasswordFile - leaving it untouched."
@@ -46,20 +46,7 @@ if (Test-Path $PasswordFile) {
     [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     $password = [Convert]::ToBase64String($bytes)
     Set-Content -Path $PasswordFile -Value $password -NoNewline
-
-    # Lock down the ACL: remove inheritance, grant Full Control only to the
-    # current user and Administrators/SYSTEM.
-    $acl = Get-Acl $PasswordFile
-    $acl.SetAccessRuleProtection($true, $false)
-    $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
-    $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    foreach ($identity in @($currentUser, 'NT AUTHORITY\SYSTEM', 'BUILTIN\Administrators')) {
-        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            $identity, 'FullControl', 'Allow')
-        $acl.AddAccessRule($rule)
-    }
-    Set-Acl -Path $PasswordFile -AclObject $acl
-    Write-Host "Password file created and secured at $PasswordFile"
+    Write-Host "Password file created at $PasswordFile"
     Write-Warning "IMPORTANT: back this password up somewhere safe (e.g. a password manager). Without it the backups CANNOT be restored."
 }
 
