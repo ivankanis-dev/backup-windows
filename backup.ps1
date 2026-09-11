@@ -131,7 +131,15 @@ try {
     # Ensure the repository is initialized (first run only)
     # -----------------------------------------------------------------
     Write-Log "Checking repository status..."
+    # Temporarily relax ErrorActionPreference: with it set to 'Stop', restic's
+    # stderr output (e.g. "repository does not exist") is converted to a
+    # terminating error the moment it's written, even though it's redirected
+    # to $null below, causing this check to throw instead of falling through
+    # to the 'restic init' branch.
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     & restic cat config *> $null
+    $ErrorActionPreference = $prevEAP
     if ($LASTEXITCODE -ne 0) {
         Write-Log "Repository not initialized yet. Running 'restic init'..."
         $initOutput = & restic init 2>&1
