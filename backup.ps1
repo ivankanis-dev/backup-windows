@@ -61,14 +61,27 @@ function Write-Log {
     Write-Output $line
 }
 
-function Show-FailureToast {
-    param([string]$Title, [string]$Text)
+function Show-Toast {
+    param(
+        [string]$Title,
+        [string]$Text,
+        [ValidateSet('Info', 'Warning', 'Error')]
+        [string]$Severity = 'Info'
+    )
     try {
         Add-Type -AssemblyName System.Windows.Forms
         $notify = New-Object System.Windows.Forms.NotifyIcon
-        $notify.Icon = [System.Drawing.SystemIcons]::Warning
+        $notify.Icon = switch ($Severity) {
+            'Error'   { [System.Drawing.SystemIcons]::Warning }
+            'Warning' { [System.Drawing.SystemIcons]::Warning }
+            default   { [System.Drawing.SystemIcons]::Information }
+        }
         $notify.Visible = $true
-        $notify.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Error
+        $notify.BalloonTipIcon = switch ($Severity) {
+            'Error'   { [System.Windows.Forms.ToolTipIcon]::Error }
+            'Warning' { [System.Windows.Forms.ToolTipIcon]::Warning }
+            default   { [System.Windows.Forms.ToolTipIcon]::Info }
+        }
         $notify.BalloonTipTitle = $Title
         $notify.BalloonTipText = $Text
         $notify.ShowBalloonTip(15000)
@@ -204,12 +217,13 @@ try {
     }
 
     Write-Log "===== Backup run finished successfully ====="
+    Show-Toast -Title 'Restic backup finished' -Text "Backup of $($BackupPaths -join ', ') completed." -Severity Info
 }
 catch {
     $errMsg = $_.Exception.Message
     Write-Log "ERROR: $errMsg"
     Write-Log "===== Backup run FAILED ====="
-    Show-FailureToast -Title 'Restic backup failed' -Text "$errMsg`nSee log: $LogFile"
+    Show-Toast -Title 'Restic backup failed' -Text "$errMsg`nSee log: $LogFile" -Severity Error
     exit 1
 }
 finally {
