@@ -25,10 +25,10 @@ backup **each time drive I: is plugged in** — no fixed daily schedule needed.
 ## One-time setup
 
 1. **Install restic**:
-   ```powershell
-   winget install restic.restic
-   ```
-   Open a *new* PowerShell window afterwards so PATH is refreshed.
+
+Create directory `c:\bin`. Drop restic.exe from the website into that directory. Add the pach c:\bin in the the path of the system environment variable.
+
+Do not install restic with `winget` as administrator you will not be able to use with a regular user.
 
 2. **Run the setup script** from an elevated PowerShell prompt (right-click
    PowerShell → Run as Administrator), as the account that will run backups:
