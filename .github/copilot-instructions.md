@@ -1,82 +1,37 @@
-# Copilot instructions for this repository
+# Copilot instructions
 
-This repo is a small set of PowerShell scripts (not an application codebase)
-that implement a restic-based backup of `C:\` and `D:\` to an external hard
-drive mounted as `I:`. There is no build system, package manifest, test
-suite, or linter — validate changes by parsing/running the scripts directly.
+This repository contains PowerShell scripts backing up `C:\` and `D:\` with
+restic to `rclone:sopalin:restic-backup/<hostname>` and, when mounted, to
+`I:\restic-backup\<hostname>`. No test suite or linter is configured.
 
-## Validating changes
+## Architecture and conventions
 
-There are no automated tests. After editing any `.ps1` file, at minimum
-parse-check it for syntax errors:
+- `Watch-DriveConnect.ps1` runs the remote backup at logon and invokes
+  `backup.ps1` when I: connects.
+- `backup.ps1` handles `sopalin` first, then I: if available. Each repository
+  has independent daily/prune markers. It initializes repositories as needed,
+  backs up with VSS and `restic-excludes.txt`, and reports failures after
+  attempting each destination.
+- `Setup-ResticBackupTask.ps1` checks restic, rclone, and the account's
+  `sopalin` remote, creates the password file if absent, and registers the
+  logon task.
+- Keep the rclone configuration and `restic-password.txt` out of source
+  control. Keep generated markers and `restic-cache\` ignored.
+- Use `$PSScriptRoot` for local paths. Keep the I: drive letter consistent in
+  `backup.ps1` and `Watch-DriveConnect.ps1`.
+- Add excludes to `restic-excludes.txt`, not inline flags.
+- Preserve timestamped logging to `logs\` and repeated-run safety.
+
+## Validation
+
+After editing a `.ps1`, parse-check it:
 
 ```powershell
-$errs = $null
+$errors = $null
 [System.Management.Automation.Language.Parser]::ParseFile(
-    "C:\Users\ikanis\backup\<file>.ps1", [ref]$null, [ref]$errs)
-$errs.Count   # should be 0
+    ".\<script>.ps1", [ref]$null, [ref]$errors)
+$errors.Count
 ```
 
-For behavioral changes to `backup.ps1`, do a manual dry run:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\backup.ps1
-```
-
-and check `logs\backup-<yyyyMMdd>.log`. `backup.ps1` is safe to run
-repeatedly/manually — it no-ops (exit 0) if drive `I:` isn't present, and a
-`Global\ResticBackupCD` named mutex prevents overlapping runs. It also
-skips (exit 0) if `last-backup.txt` already records today's date, so
-delete that file first if you need to force a second backup on the same
-day while testing.
-
-## Architecture
-
-Three scripts cooperate around one restic repository stored on the external
-drive at `I:\restic-backup\<hostname>`:
-
-- **`Watch-DriveConnect.ps1`** — long-running background watcher, started
-  hidden at user logon by the scheduled task. Subscribes to a
-  `Win32_VolumeChangeEvent` (EventType 2 = device arrival) via
-  `Register-CimIndicationEvent` and invokes `backup.ps1` whenever the new
-  volume is drive `I:` (also fires once immediately if `I:` is already
-  connected at watcher startup). Logs to `logs\watcher.log`.
-- **`backup.ps1`** — the actual worker: checks `I:` is present, skips if
-  `last-backup.txt` already shows today's date (once-per-day guard — the
-  watcher/manual runs can fire multiple times a day), sets restic env vars
-  (`RESTIC_REPOSITORY`, `RESTIC_PASSWORD_FILE`, `RESTIC_CACHE_DIR`), lazily
-  runs `restic init` on first use, backs up `C:\` and `D:\` with
-  `--use-fs-snapshot` (native VSS) and `restic-excludes.txt`, records
-  today's date to `last-backup.txt` on success/warnings-only, then
-  throttles `restic forget --prune` to at most once every 7 days (tracked
-  via `last-prune.txt`). Retention: 21 daily / 4 weekly / 6 monthly
-  snapshots. Logs to `logs\backup-<yyyyMMdd>.log` (last 30 kept); shows a
-  Windows balloon/toast notification only on failure.
-- **`Setup-ResticBackupTask.ps1`** — one-time, run elevated manually. Generates
-  `restic-password.txt` (random passphrase, ACL locked to current user +
-  SYSTEM + Administrators) if it doesn't already exist, then registers the
-  `ResticBackupWatcher-I` Scheduled Task (`-AtLogOn` trigger, runs
-  `Watch-DriveConnect.ps1` hidden, auto-restarts on failure). Safe to re-run.
-
-Key invariant: there is no fixed daily schedule — everything is driven off
-drive-connect events, so `backup.ps1` must remain safe to invoke repeatedly
-and idempotent about repo initialization.
-
-## Conventions
-
-- All three scripts derive paths from `$PSScriptRoot`/`$BackupRoot` — never
-  hardcode paths outside this folder except the `I:` drive letter and
-  `restic-password.txt`'s ACL identities.
-- Logging pattern used everywhere: a local `Write-*Log` function that
-  timestamps (`yyyy-MM-dd HH:mm:ss`) and appends to a log file under
-  `logs\`, mirrored to stdout via `Write-Output`.
-- `restic-password.txt` and `restic-cache\` must never be committed/synced
-  elsewhere; they're excluded from source control expectations by design
-  (see README security note).
-- `restic-excludes.txt` is the single source of truth for exclude patterns
-  (pagefile/hiberfil, `$Recycle.Bin`, `System Volume Information`, temp
-  dirs, restic's own cache) — add new excludes there, not as inline
-  `--exclude` flags in `backup.ps1`.
-- Drive letter `I:` is currently hardcoded in both `backup.ps1`
-  (`$DriveLetter`) and `Watch-DriveConnect.ps1` (`$DriveLetter`); keep them
-  in sync if it ever changes.
+There are no automated tests. Do not assume live access to rclone or the
+configured remote.

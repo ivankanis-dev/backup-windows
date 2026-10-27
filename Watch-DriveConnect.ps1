@@ -1,9 +1,8 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Background watcher: waits for external drive I: to be connected, then
-    triggers backup.ps1. Runs indefinitely; intended to be started hidden
-    at user logon by the ResticBackupWatcher-I scheduled task.
+    Background watcher: runs the primary sopalin backup at logon and triggers
+    backup.ps1 again whenever external drive I: is connected.
 
 .NOTES
     Uses a WMI Win32_VolumeChangeEvent subscription (EventType 2 = device
@@ -27,17 +26,15 @@ function Write-WatcherLog {
     Add-Content -Path $LogFile -Value $line
 }
 
-Write-WatcherLog "===== Watcher started, waiting for drive $DriveLetter ====="
-
-# If the drive is already connected at logon, kick off a backup immediately.
-if (Test-Path "$DriveLetter\") {
-    Write-WatcherLog "Drive $DriveLetter already connected at startup. Running backup."
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $BackupScript
-}
+Write-WatcherLog "===== Watcher started; primary destination is sopalin ====="
 
 try {
     $query = "SELECT * FROM Win32_VolumeChangeEvent WHERE EventType = 2"
     Register-CimIndicationEvent -Query $query -SourceIdentifier $SourceId | Out-Null
+
+    Write-WatcherLog "Running startup backup (sopalin; I: is included if mounted)."
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $BackupScript
+    Write-WatcherLog "Startup backup invocation finished (exit code $LASTEXITCODE)."
 
     while ($true) {
         $event = Wait-Event -SourceIdentifier $SourceId

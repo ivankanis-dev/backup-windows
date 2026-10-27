@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     One-time setup for the restic backup of C:\ and D:\ to external hard
-    drive I:.
+    drive I: and the rclone remote 'sopalin'.
 
     Run this ONCE, from an elevated PowerShell prompt, as the user account
     that will run backups. It will:
@@ -15,6 +15,8 @@
 
     Prerequisites (do this BEFORE running this script):
       - Install restic:      winget install restic.restic
+      - Install rclone and configure a remote named 'sopalin' for the account
+        that will run backups.
 #>
 
 [CmdletBinding()]
@@ -33,6 +35,25 @@ $WatcherPath   = Join-Path $BackupRoot 'Watch-DriveConnect.ps1'
 # ---------------------------------------------------------------------------
 if (-not (Get-Command restic -ErrorAction SilentlyContinue)) {
     throw "restic was not found on PATH. Install it first: winget install restic.restic"
+}
+
+if (-not (Get-Command rclone -ErrorAction SilentlyContinue)) {
+    throw "rclone was not found on PATH. Install rclone and configure the 'sopalin' remote first."
+}
+
+$previousErrorActionPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $rcloneRemotes = & rclone listremotes 2>&1
+    $rcloneExitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($rcloneExitCode -ne 0) {
+    throw "rclone could not list configured remotes. Configure 'sopalin' for this account before running setup."
+}
+if ($rcloneRemotes -notcontains 'sopalin:') {
+    throw "The rclone remote 'sopalin' is not configured for this account. Run 'rclone config' and add it before running setup."
 }
 
 # ---------------------------------------------------------------------------
@@ -75,10 +96,10 @@ $settings = New-ScheduledTaskSettingsSet `
 
 Register-ScheduledTask -TaskName $TaskName `
     -Action $action -Trigger $trigger -Principal $principal -Settings $settings `
-    -Description 'Watches for external drive I: and runs a restic backup of C: and D: to it (VSS snapshot) whenever it is connected.' `
+    -Description 'Runs a restic backup of C: and D: to rclone remote sopalin at logon and also to external drive I: whenever it is connected.' `
     -Force | Out-Null
 
-Write-Host "Scheduled task '$TaskName' registered: starts the watcher at logon; it runs continuously and triggers a backup each time drive I: is plugged in."
+Write-Host "Scheduled task '$TaskName' registered: starts the watcher at logon for the sopalin backup and runs an I: backup whenever that drive is plugged in."
 Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Log off/on once (or start the task now: Start-ScheduledTask -TaskName '$TaskName')."

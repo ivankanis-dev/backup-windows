@@ -6,6 +6,8 @@ restic-cache/
 logs/
 last-backup.txt
 last-prune.txt
+last-backup-sopalin.txt
+last-prune-sopalin.txt
 backup.lock
 
 # Editor swap files
