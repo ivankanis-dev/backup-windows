@@ -20,7 +20,8 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------------------------------------------------------
 $BackupRoot    = $PSScriptRoot
 $DriveLetter   = 'I:'
-$RemoteRepoPath = "rclone:sopalin:restic-backup/$env:COMPUTERNAME"
+# $RemoteRepoPath = "rclone:sopalin:restic-backup/$env:COMPUTERNAME"
+$RemoteRepoPath = ""
 $LocalRepoPath = '{0}\restic-backup\{1}' -f $DriveLetter, $env:COMPUTERNAME
 $ExcludeFile   = Join-Path $BackupRoot 'restic-excludes.txt'
 $PasswordFile  = Join-Path $BackupRoot 'restic-password.txt'

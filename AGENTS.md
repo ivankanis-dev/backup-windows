@@ -20,7 +20,14 @@ restic to `rclone:sopalin:restic-backup/<hostname>` and, when mounted, to
 - Use `$PSScriptRoot` for local paths. Keep the I: drive letter consistent in
   `backup.ps1` and `Watch-DriveConnect.ps1`.
 - Add excludes to `restic-excludes.txt`, not inline flags.
-- Preserve timestamped logging to `logs\` and repeated-run safety.
+- Preserve timestamped logging to `logs\` and repeated-run safety. The
+  single-instance guard is the named mutex `Global\ResticBackupCD` in
+  `backup.ps1`.
+- Target Windows PowerShell 5.1 (`#Requires -Version 5.1`). Avoid PowerShell 7
+  only syntax such as `?:`, `??`, and `&&`/`||` pipeline chains.
+- Native `restic`/`rclone` calls run with `$ErrorActionPreference` temporarily
+  set to `Continue` and are checked through `$LASTEXITCODE`. Follow this
+  pattern. `restic` exit code 3 (partial read) counts as success with warnings.
 
 ## Validation
 
@@ -33,5 +40,10 @@ $errors = $null
 $errors.Count
 ```
 
-There are no automated tests. Do not assume live access to rclone or the
-configured remote.
+There are no automated tests, linter, or build step, so there is no single-test
+command. Do not assume live access to rclone or the configured remote.
+
+Running `.\backup.ps1` performs real backups and prune operations against
+`sopalin` and I:. Do not run it to verify edits unless the user asks.
+`Setup-ResticBackupTask.ps1` must run elevated and changes the scheduled task.
+Do not run it either.
