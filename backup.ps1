@@ -208,12 +208,16 @@ try {
 
     $failures = [System.Collections.Generic.List[string]]::new()
 
-    try {
-        Invoke-RepositoryBackup -Destination 'sopalin' -Repository $RemoteRepoPath `
-            -BackupMarker $RemoteBackupMarker -PruneMarker $RemotePruneMarker -Today $today
-    } catch {
-        $failures.Add($_.Exception.Message)
-        Write-Log "ERROR: $($_.Exception.Message)"
+    if ([string]::IsNullOrWhiteSpace($RemoteRepoPath)) {
+        Write-Log "RemoteRepoPath is empty. Skipping sopalin (cloud) backup."
+    } else {
+        try {
+            Invoke-RepositoryBackup -Destination 'sopalin' -Repository $RemoteRepoPath `
+                -BackupMarker $RemoteBackupMarker -PruneMarker $RemotePruneMarker -Today $today
+        } catch {
+            $failures.Add($_.Exception.Message)
+            Write-Log "ERROR: $($_.Exception.Message)"
+        }
     }
 
     if (Test-Path "$DriveLetter\") {
